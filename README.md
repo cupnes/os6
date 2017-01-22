@@ -8,4 +8,5 @@ QEMU上で動作確認する際は、UEFIのイメージファイルが必要で
 
 なお、当リポジトリは、以下のリポジトリの030_shellサンプルから分岐したものです。
 - https://github.com/cupnes/bare_metal_uefi
+
 現時点において、使い方の詳細は、上記リポジトリのREADMEを見てみて下さい。
