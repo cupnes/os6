@@ -1,7 +1,9 @@
+#define NULL		(void *)0
 #define MAX_LINE_SIZE	512
 
 enum {
 	ECHO,
+	SHOWHWPARAM,
 #ifdef DEBUG
 	TEST,
 #endif /* DEBUG */
@@ -39,7 +41,63 @@ struct EFI_SYSTEM_TABLE {
 	} *BootServices;
 };
 
+struct EFI_GRAPHICS_OUTPUT_BLT_PIXEL {
+	unsigned char Blue;
+	unsigned char Green;
+	unsigned char Red;
+	unsigned char Reserved;
+};
+
+enum EFI_GRAPHICS_OUTPUT_BLT_OPERATION {
+	EfiBltVideoFill,
+	EfiBltVideoToBltBuffer,
+	EfiBltBufferToVideo,
+	EfiBltVideoToVideo,
+	EfiGraphicsOutputBltOperationMax
+};
+
+enum EFI_GRAPHICS_PIXEL_FORMAT {
+	PixelRedGreenBlueReserved8BitPerColor,
+	PixelBlueGreenRedReserved8BitPerColor,
+	PixelBitMask,
+	PixelBltOnly,
+	PixelFormatMax
+};
+
+struct EFI_GRAPHICS_OUTPUT_PROTOCOL {
+	void *_buf;
+	unsigned long long (*SetMode)(struct EFI_GRAPHICS_OUTPUT_PROTOCOL *, unsigned int);
+	unsigned long long (*Blt)(struct EFI_GRAPHICS_OUTPUT_PROTOCOL *,
+				  struct EFI_GRAPHICS_OUTPUT_BLT_PIXEL *,
+				  enum EFI_GRAPHICS_OUTPUT_BLT_OPERATION,
+				  unsigned long long SourceX, unsigned long long SourceY,
+				  unsigned long long DestinationX, unsigned long long DestinationY,
+				  unsigned long long Width, unsigned long long Height,
+				  unsigned long long Delta);
+	struct EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE {
+		unsigned int MaxMode;
+		unsigned int Mode;
+		struct EFI_GRAPHICS_OUTPUT_MODE_INFORMATION {
+			unsigned int Version;
+			unsigned int HorizontalResolution;
+			unsigned int VerticalResolution;
+			enum EFI_GRAPHICS_PIXEL_FORMAT PixelFormat;
+			struct EFI_PIXEL_BITMASK {
+				unsigned int RedMask;
+				unsigned int GreenMask;
+				unsigned int BlueMask;
+				unsigned int ReservedMask;
+			} PixelInformation;
+			unsigned int PixelsPerScanLine;
+		} *Info;
+		unsigned long long SizeOfInfo;
+		unsigned long long FrameBufferBase;
+		unsigned long long FrameBufferSize;
+	} *Mode;
+};
+
 struct EFI_SYSTEM_TABLE *SystemTable;
+struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 
 static void str_copy(const unsigned short *src, unsigned short *dst, unsigned int size)
 {
@@ -152,10 +210,93 @@ static int str_compare(const unsigned short *src, const unsigned short *dst)
 	}
 }
 
+unsigned short *int_to_ascii(long long val, unsigned char num_digits, unsigned short str[])
+{
+	unsigned char digits_base = 0;
+	char i;
+
+	if (val < 0) {
+		str[digits_base++] = L'-';
+		val *= -1;
+	}
+
+	for (i = num_digits - 1; i >= 0; i--) {
+		str[digits_base + i] = L'0' + (val % 10);
+		val /= 10;
+	}
+
+	str[digits_base + num_digits] = L'\0';
+
+	return str;
+}
+
+unsigned short *int_to_ascii_hex(unsigned long long val, unsigned char num_digits, unsigned short str[])
+{
+	short i;
+	unsigned short v;
+
+	for (i = num_digits - 1; i >= 0; i--) {
+		v = (unsigned short)(val & 0x0f);
+		if (v < 0xa)
+			str[i] = L'0' + v;
+		else
+			str[i] = L'A' + (v - 0xa);
+		val >>= 4;
+	}
+
+	str[num_digits] = L'\0';
+
+	return str;
+}
+
 static int command_echo(unsigned short *args)
 {
 	put_str(args);
 	put_str(L"\r\n");
+
+	return 0;
+}
+
+static int command_showhwparam(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned short str[32];
+
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"MaxMode: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->MaxMode, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Mode: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->Mode, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Version: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->Info->Version, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"HorizontalResolution: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->Info->HorizontalResolution, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"VerticalResolution: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->Info->VerticalResolution, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"PixelFormat: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->Info->PixelFormat, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"PixelInformation:\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->Info->PixelInformation.RedMask, 8, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->Info->PixelInformation.GreenMask, 8, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->Info->PixelInformation.BlueMask, 8, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->Info->PixelInformation.ReservedMask, 8, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"SizeOfInfo: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii(gop->Mode->SizeOfInfo, 10, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"FrameBufferBase: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->FrameBufferBase, 16, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"FrameBufferSize: ");
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, int_to_ascii_hex(gop->Mode->FrameBufferSize, 16, str));
+	SystemTable->ConOut->OutputString(SystemTable->ConOut, L"\r\n");
 
 	return 0;
 }
@@ -173,6 +314,10 @@ static unsigned char get_command_id(const unsigned short *command)
 {
 	if (!str_compare(command, L"echo")) {
 		return ECHO;
+	}
+
+	if (!str_compare(command, L"showhwparam")) {
+		return SHOWHWPARAM;
 	}
 
 #ifdef DEBUG
@@ -203,6 +348,9 @@ void shell(void)
 		case ECHO:
 			command_echo(args);
 			break;
+		case SHOWHWPARAM:
+			command_showhwparam(args);
+			break;
 #ifdef DEBUG
 		case TEST:
 			command_test(args);
@@ -217,6 +365,10 @@ void shell(void)
 
 void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABLE *_SystemTable)
 {
+	struct EFI_GUID gop_guid = {0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a}};
+
 	SystemTable = _SystemTable;
+	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
+
 	shell();
 }
