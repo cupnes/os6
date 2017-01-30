@@ -13,6 +13,13 @@ struct EFI_INPUT_KEY {
 	unsigned short UnicodeChar;
 };
 
+struct EFI_GUID {
+	unsigned int Data1;
+	unsigned short Data2;
+	unsigned short Data3;
+	unsigned char Data4[8];
+};
+
 struct EFI_SYSTEM_TABLE {
 	char _buf1[44];
 	struct EFI_SIMPLE_TEXT_INPUT_PROTOCOL {
@@ -24,6 +31,12 @@ struct EFI_SYSTEM_TABLE {
 		void *_buf;
 		unsigned long long (*OutputString)(struct EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *, unsigned short *);
 	} *ConOut;
+	char _buf3[24];
+	struct EFI_BOOT_SERVICES {
+		char _buf1[24];
+		char _buf2[296];
+		unsigned long long (*LocateProtocol)(struct EFI_GUID *, void *, void **);
+	} *BootServices;
 };
 
 struct EFI_SYSTEM_TABLE *SystemTable;
