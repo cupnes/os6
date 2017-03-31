@@ -4,6 +4,7 @@
 enum {
 	ECHO,
 	SHOWHWPARAM,
+	LS,
 #ifdef DEBUG
 	TEST,
 #endif /* DEBUG */
@@ -39,6 +40,31 @@ struct EFI_SYSTEM_TABLE {
 		char _buf2[296];
 		unsigned long long (*LocateProtocol)(struct EFI_GUID *, void *, void **);
 	} *BootServices;
+};
+
+struct EFI_TIME {
+	unsigned short Year; // 1900 – 9999
+	unsigned char Month; // 1 – 12
+	unsigned char Day; // 1 – 31
+	unsigned char Hour; // 0 – 23
+	unsigned char Minute; // 0 – 59
+	unsigned char Second; // 0 – 59
+	unsigned char Pad1;
+	unsigned int Nanosecond; // 0 – 999,999,999
+	unsigned short TimeZone; // -1440 to 1440 or 2047
+	unsigned char Daylight;
+	unsigned char Pad2;
+};
+
+struct EFI_FILE_INFO {
+	unsigned long long Size;
+	unsigned long long FileSize;
+	unsigned long long PhysicalSize;
+	struct EFI_TIME CreateTime;
+	struct EFI_TIME LastAccessTime;
+	struct EFI_TIME ModificationTime;
+	unsigned long long Attribute;
+	unsigned short FileName[];
 };
 
 struct EFI_GRAPHICS_OUTPUT_BLT_PIXEL {
@@ -96,8 +122,47 @@ struct EFI_GRAPHICS_OUTPUT_PROTOCOL {
 	} *Mode;
 };
 
+struct EFI_FILE_PROTOCOL {
+	unsigned long long Revision;
+	unsigned long long (*Open)(struct EFI_FILE_PROTOCOL *This,
+				   struct EFI_FILE_PROTOCOL **NewHandle,
+				   unsigned short *FileName,
+				   unsigned long long OpenMode,
+				   unsigned long long Attributes);
+	unsigned long long (*Close)(struct EFI_FILE_PROTOCOL *This);
+	unsigned long long (*Delete)(struct EFI_FILE_PROTOCOL *This);
+	unsigned long long (*Read)(struct EFI_FILE_PROTOCOL *This,
+				   unsigned long long *BufferSize,
+				   void *Buffer);
+	unsigned long long (*Write)(struct EFI_FILE_PROTOCOL *This,
+				    unsigned long long *BufferSize,
+				    void *Buffer);
+	unsigned long long (*GetPosition)(struct EFI_FILE_PROTOCOL *This,
+					  unsigned long long *Position);
+	unsigned long long (*SetPosition)(struct EFI_FILE_PROTOCOL *This,
+					  unsigned long long Position);
+	unsigned long long (*GetInfo)(struct EFI_FILE_PROTOCOL *This,
+				      struct EFI_GUID *InformationType,
+				      unsigned long long *BufferSize,
+				      void *Buffer);
+	unsigned long long (*SetInfo)(struct EFI_FILE_PROTOCOL *This,
+				      struct EFI_GUID *InformationType,
+				      unsigned long long BufferSize,
+				      void *Buffer);
+	unsigned long long (*Flush)(struct EFI_FILE_PROTOCOL *This);
+};
+
+struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
+	unsigned long long Revision;
+	unsigned long long (*OpenVolume)(
+		struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *This,
+		struct EFI_FILE_PROTOCOL **Root);
+};
+
 struct EFI_SYSTEM_TABLE *SystemTable;
 struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
+struct EFI_FILE_PROTOCOL *root;
 
 static void str_copy(const unsigned short *src, unsigned short *dst, unsigned int size)
 {
@@ -301,6 +366,33 @@ static int command_showhwparam(unsigned short *args __attribute__ ((unused)))
 	return 0;
 }
 
+#define MAX_FILE_BUF	1024
+static int command_ls(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned long long status;
+	unsigned long long buf_size;
+	char file_buf[MAX_FILE_BUF];
+	struct EFI_FILE_INFO *efi;
+
+	while (1) {
+		buf_size = MAX_FILE_BUF;
+		status = root->Read(root, &buf_size, (void *)file_buf);
+		if (status) {
+			put_str(L"error: root->Read\r\n");
+			while (1);
+		}
+		if (!buf_size)
+			break;
+
+		efi = (struct EFI_FILE_INFO *)file_buf;
+		put_str(efi->FileName);
+		put_str(L" ");
+	}
+	put_str(L"\r\n");
+
+	return 0;
+}
+
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
@@ -318,6 +410,10 @@ static unsigned char get_command_id(const unsigned short *command)
 
 	if (!str_compare(command, L"showhwparam")) {
 		return SHOWHWPARAM;
+	}
+
+	if (!str_compare(command, L"ls")) {
+		return LS;
 	}
 
 #ifdef DEBUG
@@ -351,6 +447,9 @@ void shell(void)
 		case SHOWHWPARAM:
 			command_showhwparam(args);
 			break;
+		case LS:
+			command_ls(args);
+			break;
 #ifdef DEBUG
 		case TEST:
 			command_test(args);
@@ -366,9 +465,19 @@ void shell(void)
 void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABLE *_SystemTable)
 {
 	struct EFI_GUID gop_guid = {0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a}};
+	struct EFI_GUID sfsp_guid = {0x0964e5b22, 0x6459,0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+	unsigned long long status;
 
 	SystemTable = _SystemTable;
+
 	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
+
+	SystemTable->BootServices->LocateProtocol(&sfsp_guid, NULL, (void **)&sfsp);
+	status = sfsp->OpenVolume(sfsp, &root);
+	if (status) {
+		put_str(L"error: sfsp->OpenVolume\r\n");
+		while (1);
+	}
 
 	shell();
 }
