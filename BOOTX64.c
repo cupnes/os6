@@ -181,7 +181,6 @@ struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
 struct EFI_SYSTEM_TABLE *SystemTable;
 struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
-struct EFI_FILE_PROTOCOL *root;
 
 static void str_copy(const unsigned short *src, unsigned short *dst, unsigned int size)
 {
@@ -491,13 +490,20 @@ static int command_ls(unsigned short *args __attribute__ ((unused)))
 	unsigned long long buf_size;
 	char file_buf[MAX_FILE_BUF];
 	struct EFI_FILE_INFO *efi;
+	struct EFI_FILE_PROTOCOL *root;
+
+	status = sfsp->OpenVolume(sfsp, &root);
+	if (status) {
+		put_str(L"error: sfsp->OpenVolume\r\n");
+		return 1;
+	}
 
 	while (1) {
 		buf_size = MAX_FILE_BUF;
 		status = root->Read(root, &buf_size, (void *)file_buf);
 		if (status) {
 			put_str(L"error: root->Read\r\n");
-			while (1);
+			break;
 		}
 		if (!buf_size)
 			break;
@@ -508,6 +514,10 @@ static int command_ls(unsigned short *args __attribute__ ((unused)))
 	}
 	put_str(L"\r\n");
 
+	status = root->Close(root);
+	if (status)
+		put_str(L"root->Close\r\n");
+
 	return 0;
 }
 
@@ -517,7 +527,14 @@ static int command_cat(unsigned short *args)
 	char file_buf[MAX_FILE_BUF];
 	unsigned long long status;
 	unsigned short str[1024];
+	struct EFI_FILE_PROTOCOL *root;
 	struct EFI_FILE_PROTOCOL *file;
+
+	status = sfsp->OpenVolume(sfsp, &root);
+	if (status) {
+		put_str(L"error: sfsp->OpenVolume\r\n");
+		return 1;
+	}
 
 	status = root->Open(root, &file, args, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 	if (status) {
@@ -542,6 +559,10 @@ static int command_cat(unsigned short *args)
 		put_str(L")\r\n");
 		put_str(L"file->Close\r\n");
 	}
+
+	status = root->Close(root);
+	if (status)
+		put_str(L"root->Close\r\n");
 
 	return 0;
 }
@@ -626,18 +647,10 @@ void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABL
 {
 	struct EFI_GUID gop_guid = {0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a}};
 	struct EFI_GUID sfsp_guid = {0x0964e5b22, 0x6459,0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
-	unsigned long long status;
 
 	SystemTable = _SystemTable;
-
 	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
-
 	SystemTable->BootServices->LocateProtocol(&sfsp_guid, NULL, (void **)&sfsp);
-	status = sfsp->OpenVolume(sfsp, &root);
-	if (status) {
-		put_str(L"error: sfsp->OpenVolume\r\n");
-		while (1);
-	}
 
 	shell();
 }
