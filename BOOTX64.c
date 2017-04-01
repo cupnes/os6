@@ -1,6 +1,7 @@
 #define NULL		(void *)0
 #define MAX_LINE_SIZE	512
 #define MAX_FILE_BUF	1024
+#define MAX_IMG_BUF	4194304	/* 4MB */
 
 //*******************************************************
 // Open Modes
@@ -24,6 +25,7 @@ enum {
 	SHOWHWPARAM,
 	LS,
 	CAT,
+	VIEW,
 #ifdef DEBUG
 	TEST,
 #endif /* DEBUG */
@@ -181,6 +183,7 @@ struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
 struct EFI_SYSTEM_TABLE *SystemTable;
 struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
+unsigned char img_buf[MAX_IMG_BUF];
 
 static void str_copy(const unsigned short *src, unsigned short *dst, unsigned int size)
 {
@@ -432,6 +435,29 @@ unsigned short *ascii_to_unicode(char ascii[], unsigned char num_digits, unsigne
 	return str;
 }
 
+void blt(unsigned char img[], unsigned int img_width, unsigned int img_height)
+{
+	unsigned char *fb;
+	unsigned int i, j, k, vr, hr, ofs = 0;
+
+	fb = (unsigned char *)gop->Mode->FrameBufferBase;
+	vr = gop->Mode->Info->VerticalResolution;
+	hr = gop->Mode->Info->HorizontalResolution;
+
+	for (i = 0; i < vr; i++) {
+		if (i >= img_height)
+			break;
+		for (j = 0; j < hr; j++) {
+			if (j >= img_width) {
+				fb += (hr - img_width) * 4;
+				break;
+			}
+			for (k = 0; k < 4; k++)
+				*fb++ = img[ofs++];
+		}
+	}
+}
+
 static int command_echo(unsigned short *args)
 {
 	put_str(args);
@@ -567,6 +593,51 @@ static int command_cat(unsigned short *args)
 	return 0;
 }
 
+static int command_view(unsigned short *args)
+{
+	unsigned long long buf_size = MAX_IMG_BUF;
+	unsigned long long status;
+	unsigned short str[1024];
+	struct EFI_FILE_PROTOCOL *root;
+	struct EFI_FILE_PROTOCOL *file;
+
+	status = sfsp->OpenVolume(sfsp, &root);
+	if (status) {
+		put_str(L"error: sfsp->OpenVolume\r\n");
+		return 1;
+	}
+
+	status = root->Open(root, &file, args, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
+	if (status) {
+		put_str(L"error: root->Open(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		return 1;
+	}
+
+	status = file->Read(file, &buf_size, (void *)img_buf);
+	if (status) {
+		put_str(L"error: file->Read(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+	} else
+		blt(img_buf, 640, 480);
+
+	status = file->Close(file);
+	if (status) {
+		put_str(L"error: file->Close(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		put_str(L"file->Close\r\n");
+	}
+
+	status = root->Close(root);
+	if (status)
+		put_str(L"root->Close\r\n");
+
+	return 0;
+}
+
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
@@ -592,6 +663,10 @@ static unsigned char get_command_id(const unsigned short *command)
 
 	if (!str_compare(command, L"cat")) {
 		return CAT;
+	}
+
+	if (!str_compare(command, L"view")) {
+		return VIEW;
 	}
 
 #ifdef DEBUG
@@ -630,6 +705,9 @@ void shell(void)
 			break;
 		case CAT:
 			command_cat(args);
+			break;
+		case VIEW:
+			command_view(args);
 			break;
 #ifdef DEBUG
 		case TEST:
