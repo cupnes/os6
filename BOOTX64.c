@@ -1,10 +1,29 @@
 #define NULL		(void *)0
 #define MAX_LINE_SIZE	512
+#define MAX_FILE_BUF	1024
+
+//*******************************************************
+// Open Modes
+//*******************************************************
+#define EFI_FILE_MODE_READ	0x0000000000000001
+#define EFI_FILE_MODE_WRITE	0x0000000000000002
+#define EFI_FILE_MODE_CREATE	0x8000000000000000
+//*******************************************************
+// File Attributes
+//*******************************************************
+#define EFI_FILE_READ_ONLY	0x0000000000000001
+#define EFI_FILE_HIDDEN	0x0000000000000002
+#define EFI_FILE_SYSTEM	0x0000000000000004
+#define EFI_FILE_RESERVED	0x0000000000000008
+#define EFI_FILE_DIRECTORY	0x0000000000000010
+#define EFI_FILE_ARCHIVE	0x0000000000000020
+#define EFI_FILE_VALID_ATTR	0x0000000000000037
 
 enum {
 	ECHO,
 	SHOWHWPARAM,
 	LS,
+	CAT,
 #ifdef DEBUG
 	TEST,
 #endif /* DEBUG */
@@ -314,6 +333,106 @@ unsigned short *int_to_ascii_hex(unsigned long long val, unsigned char num_digit
 	return str;
 }
 
+unsigned short *int_to_unicode(long long val, unsigned char num_digits, unsigned short str[])
+{
+	unsigned char digits_base = 0;
+	char i;
+
+	if (val < 0) {
+		str[digits_base++] = L'-';
+		val *= -1;
+	}
+
+	for (i = num_digits - 1; i >= 0; i--) {
+		str[digits_base + i] = L'0' + (val % 10);
+		val /= 10;
+	}
+
+	str[digits_base + num_digits] = L'\0';
+
+	return str;
+}
+
+unsigned short *int_to_unicode_hex(unsigned long long val, unsigned char num_digits, unsigned short str[])
+{
+	short i;
+	unsigned short v;
+
+	for (i = num_digits - 1; i >= 0; i--) {
+		v = (unsigned short)(val & 0x0f);
+		if (v < 0xa)
+			str[i] = L'0' + v;
+		else
+			str[i] = L'A' + (v - 0xa);
+		val >>= 4;
+	}
+
+	str[num_digits] = L'\0';
+
+	return str;
+}
+
+unsigned short *ascii_to_unicode(char ascii[], unsigned char num_digits, unsigned short str[])
+{
+	unsigned char i;
+
+	for (i = 0; i < num_digits; i++) {
+		if (ascii[i] == '\0') {
+			break;
+		}
+
+		if ('0' <= ascii[i] && ascii[i] <= '9')
+			str[i] = L'0' + (ascii[i] - '0');
+		else if ('A' <= ascii[i] && ascii[i] <= 'Z')
+			str[i] = L'A' + (ascii[i] - 'A');
+		else if ('a' <= ascii[i] && ascii[i] <= 'z')
+			str[i] = L'a' + (ascii[i] - 'a');
+		else {
+			switch (ascii[i]) {
+			case ' ':
+				str[i] = L' ';
+				break;
+			case '-':
+				str[i] = L'-';
+				break;
+			case '+':
+				str[i] = L'+';
+				break;
+			case '*':
+				str[i] = L'*';
+				break;
+			case '/':
+				str[i] = L'/';
+				break;
+			case '&':
+				str[i] = L'&';
+				break;
+			case '|':
+				str[i] = L'|';
+				break;
+			case '%':
+				str[i] = L'%';
+				break;
+			case '#':
+				str[i] = L'#';
+				break;
+			case '!':
+				str[i] = L'!';
+				break;
+			case '\r':
+				str[i] = L'\r';
+				break;
+			case '\n':
+				str[i] = L'\n';
+				break;
+			}
+		}
+	}
+
+	str[i] = L'\0';
+	return str;
+}
+
 static int command_echo(unsigned short *args)
 {
 	put_str(args);
@@ -366,7 +485,6 @@ static int command_showhwparam(unsigned short *args __attribute__ ((unused)))
 	return 0;
 }
 
-#define MAX_FILE_BUF	1024
 static int command_ls(unsigned short *args __attribute__ ((unused)))
 {
 	unsigned long long status;
@@ -393,6 +511,41 @@ static int command_ls(unsigned short *args __attribute__ ((unused)))
 	return 0;
 }
 
+static int command_cat(unsigned short *args)
+{
+	unsigned long long buf_size = MAX_FILE_BUF;
+	char file_buf[MAX_FILE_BUF];
+	unsigned long long status;
+	unsigned short str[1024];
+	struct EFI_FILE_PROTOCOL *file;
+
+	status = root->Open(root, &file, args, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
+	if (status) {
+		put_str(L"error: root->Open(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		return 1;
+	}
+
+	status = file->Read(file, &buf_size, (void *)file_buf);
+	if (status) {
+		put_str(L"error: file->Read(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+	} else
+		put_str(ascii_to_unicode(file_buf, buf_size, str));
+
+	status = file->Close(file);
+	if (status) {
+		put_str(L"error: file->Close(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		put_str(L"file->Close\r\n");
+	}
+
+	return 0;
+}
+
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
@@ -414,6 +567,10 @@ static unsigned char get_command_id(const unsigned short *command)
 
 	if (!str_compare(command, L"ls")) {
 		return LS;
+	}
+
+	if (!str_compare(command, L"cat")) {
+		return CAT;
 	}
 
 #ifdef DEBUG
@@ -449,6 +606,9 @@ void shell(void)
 			break;
 		case LS:
 			command_ls(args);
+			break;
+		case CAT:
+			command_cat(args);
 			break;
 #ifdef DEBUG
 		case TEST:
