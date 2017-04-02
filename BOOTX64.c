@@ -54,6 +54,8 @@ struct EFI_SYSTEM_TABLE {
 	struct EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL {
 		void *_buf;
 		unsigned long long (*OutputString)(struct EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *, unsigned short *);
+		char _buf2[32];
+		unsigned long long (*ClearScreen)(struct EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *);
 	} *ConOut;
 	char _buf3[24];
 	struct EFI_BOOT_SERVICES {
@@ -600,6 +602,7 @@ static int command_view(unsigned short *args)
 	unsigned short str[1024];
 	struct EFI_FILE_PROTOCOL *root;
 	struct EFI_FILE_PROTOCOL *file;
+	struct EFI_INPUT_KEY efi_input_key;
 
 	status = sfsp->OpenVolume(sfsp, &root);
 	if (status) {
@@ -620,8 +623,11 @@ static int command_view(unsigned short *args)
 		put_str(L"error: file->Read(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
 		put_str(L")\r\n");
-	} else
+	} else {
 		blt(img_buf, 640, 480);
+		while (SystemTable->ConIn->ReadKeyStroke(SystemTable->ConIn, &efi_input_key));
+		SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
+	}
 
 	status = file->Close(file);
 	if (status) {
