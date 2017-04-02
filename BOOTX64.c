@@ -2,6 +2,8 @@
 #define MAX_LINE_SIZE	512
 #define MAX_FILE_BUF	1024
 #define MAX_IMG_BUF	4194304	/* 4MB */
+#define MAX_ARGS	100
+#define MAX_FILE_LEN	32
 
 //*******************************************************
 // Open Modes
@@ -595,6 +597,8 @@ static int command_cat(unsigned short *args)
 	return 0;
 }
 
+#define SKIP_SIZE	5
+unsigned short img_name_buf[MAX_ARGS][MAX_FILE_LEN];
 static int command_view(unsigned short *args)
 {
 	unsigned long long buf_size = MAX_IMG_BUF;
@@ -603,6 +607,11 @@ static int command_view(unsigned short *args)
 	struct EFI_FILE_PROTOCOL *root;
 	struct EFI_FILE_PROTOCOL *file;
 	struct EFI_INPUT_KEY efi_input_key;
+	unsigned short other[MAX_FILE_LEN];
+	int line_len;
+	int i;
+	int num_args;
+	unsigned char quit = 0;
 
 	status = sfsp->OpenVolume(sfsp, &root);
 	if (status) {
@@ -610,36 +619,84 @@ static int command_view(unsigned short *args)
 		return 1;
 	}
 
-	status = root->Open(root, &file, args, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
-	if (status) {
-		put_str(L"error: root->Open(status:0x");
-		put_str(int_to_unicode_hex(status, 16, str));
-		put_str(L")\r\n");
-		return 1;
+	for (i = 0; ; i++) {
+		str_get_first_entry(args, img_name_buf[i], other);
+		if (img_name_buf[i][0] == L'\0') {
+			num_args = i;
+			break;
+		}
+
+		line_len = str_get_len(other);
+		str_copy(other, args, line_len);
 	}
 
-	status = file->Read(file, &buf_size, (void *)img_buf);
-	if (status) {
-		put_str(L"error: file->Read(status:0x");
-		put_str(int_to_unicode_hex(status, 16, str));
-		put_str(L")\r\n");
-	} else {
-		blt(img_buf, 640, 480);
+	i = 0;
+	while (!quit) {
+		status = root->Open(root, &file, img_name_buf[i], EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
+		if (status) {
+			put_str(L"error: root->Open(status:0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L")\r\n");
+			break;
+		}
+
+		status = file->Read(file, &buf_size, (void *)img_buf);
+		if (status) {
+			put_str(L"error: file->Read(status:0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L")\r\n");
+			break;
+		} else
+			blt(img_buf, 640, 480);
+
 		while (SystemTable->ConIn->ReadKeyStroke(SystemTable->ConIn, &efi_input_key));
-		SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
-	}
+		switch (efi_input_key.UnicodeChar) {
+		case L'j':
+			if (i < num_args - 1)
+				i++;
+			break;
+		case L'J':
+			if (i < num_args - 1)
+				i += SKIP_SIZE;
+			if (i >= num_args)
+				i = num_args - 1;
+			break;
+		case L'k':
+			if (i > 0)
+				i--;
+			break;
+		case L'K':
+			if (i > 0)
+				i -= SKIP_SIZE;
+			if (i < 0)
+				i = 0;
+			break;
+		case L'h':
+			i = 0;
+			break;
+		case L'l':
+			i = num_args - 1;
+			break;
+		case L'q':
+			quit = 1;
+			break;
+		}
 
-	status = file->Close(file);
-	if (status) {
-		put_str(L"error: file->Close(status:0x");
-		put_str(int_to_unicode_hex(status, 16, str));
-		put_str(L")\r\n");
-		put_str(L"file->Close\r\n");
+		status = file->Close(file);
+		if (status) {
+			put_str(L"error: file->Close(status:0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L")\r\n");
+			put_str(L"file->Close\r\n");
+			break;
+		}
 	}
 
 	status = root->Close(root);
 	if (status)
 		put_str(L"root->Close\r\n");
+
+	SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
 
 	return 0;
 }
