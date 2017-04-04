@@ -741,11 +741,44 @@ static unsigned char get_command_id(const unsigned short *command)
 	return COMMAND_NUM;
 }
 
+void execute_line(unsigned short *buf)
+{
+	unsigned short command[256], args[256];
+	unsigned char command_id;
+
+	str_get_first_entry(buf, command, args);
+	command_id = get_command_id(command);
+
+	switch (command_id) {
+	case ECHO:
+		command_echo(args);
+		break;
+	case SHOWHWPARAM:
+		command_showhwparam(args);
+		break;
+	case LS:
+		command_ls(args);
+		break;
+	case CAT:
+		command_cat(args);
+		break;
+	case VIEW:
+		command_view(args);
+		break;
+#ifdef DEBUG
+	case TEST:
+		command_test(args);
+		break;
+#endif /* DEBUG */
+	default:
+		put_str(L"Command not found.\r\n");
+		break;
+	}
+}
+
 void shell(void)
 {
 	unsigned short buf[MAX_LINE_SIZE];
-	unsigned short command[256], args[256];
-	unsigned char command_id;
 
 	while (1) {
 		put_str(L"shell> ");
@@ -753,34 +786,7 @@ void shell(void)
 			continue;
 		}
 
-		str_get_first_entry(buf, command, args);
-		command_id = get_command_id(command);
-
-		switch (command_id) {
-		case ECHO:
-			command_echo(args);
-			break;
-		case SHOWHWPARAM:
-			command_showhwparam(args);
-			break;
-		case LS:
-			command_ls(args);
-			break;
-		case CAT:
-			command_cat(args);
-			break;
-		case VIEW:
-			command_view(args);
-			break;
-#ifdef DEBUG
-		case TEST:
-			command_test(args);
-			break;
-#endif /* DEBUG */
-		default:
-			put_str(L"Command not found.\r\n");
-			break;
-		}
+		execute_line(buf);
 	}
 }
 
