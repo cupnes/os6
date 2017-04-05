@@ -554,7 +554,7 @@ static int command_ls(unsigned short *args __attribute__ ((unused)))
 static int command_cat(unsigned short *args)
 {
 	unsigned long long buf_size = MAX_FILE_BUF;
-	char file_buf[MAX_FILE_BUF];
+	unsigned short file_buf[MAX_FILE_BUF / 2];
 	unsigned long long status;
 	unsigned short str[1024];
 	struct EFI_FILE_PROTOCOL *root;
@@ -580,7 +580,7 @@ static int command_cat(unsigned short *args)
 		put_str(int_to_unicode_hex(status, 16, str));
 		put_str(L")\r\n");
 	} else
-		put_str(ascii_to_unicode(file_buf, buf_size, str));
+		put_str(file_buf);
 
 	status = file->Close(file);
 	if (status) {
