@@ -850,7 +850,7 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 
 
 
-	status = root->Open(root, &file, L"test.sh", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+	status = root->Open(root, &file, L"a.sh", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
 	if (status) {
 		put_str(L"error: root->Open(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
@@ -858,9 +858,9 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 		return 1;
 	}
 
-	unsigned short test_sh_buf[] = L"view selfintro.bgra os5struct.bgra os5stvsuefi.bgra";
+	unsigned short a_sh_buf[] = L"view selfintro.bgra os5struct.bgra os5stvsuefi.bgra";
 	buf_size = 104;
-	status = file->Write(file, &buf_size, (void *)test_sh_buf);
+	status = file->Write(file, &buf_size, (void *)a_sh_buf);
 	if (status) {
 		put_str(L"error: file->Write(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
@@ -875,11 +875,11 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 		put_str(L"file->Close\r\n");
 	}
 
-	put_str(L"test.sh finished\r\n");
+	put_str(L"a.sh finished\r\n");
 
 
 
-	status = root->Open(root, &file, L"sugoi.txt", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+	status = root->Open(root, &file, L"test.txt", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
 	if (status) {
 		put_str(L"error: root->Open(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
@@ -887,9 +887,9 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 		return 1;
 	}
 
-	unsigned short sugoi_txt_buf[] = L"すごーい\r\n";
-	buf_size = 14;
-	status = file->Write(file, &buf_size, (void *)sugoi_txt_buf);
+	unsigned short test_txt_buf[] = L"                すごーい\r\n";
+	buf_size = 46;
+	status = file->Write(file, &buf_size, (void *)test_txt_buf);
 	if (status) {
 		put_str(L"error: file->Write(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
@@ -904,7 +904,7 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 		put_str(L"file->Close\r\n");
 	}
 
-	put_str(L"sugoi.txt finished\r\n");
+	put_str(L"test.txt finished\r\n");
 
 
 
@@ -916,8 +916,8 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 		return 1;
 	}
 
-	unsigned short hello_txt_buf[] = L"Hello UEFI!\r\n";
-	buf_size = 28;
+	unsigned short hello_txt_buf[] = L"                Hello UEFI!\r\n";
+	buf_size = 60;
 	status = file->Write(file, &buf_size, (void *)hello_txt_buf);
 	if (status) {
 		put_str(L"error: file->Write(status:0x");
@@ -934,6 +934,35 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 	}
 
 	put_str(L"hello.txt finished\r\n");
+
+
+
+	status = root->Open(root, &file, L"end.txt", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
+	if (status) {
+		put_str(L"error: root->Open(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		return 1;
+	}
+
+	unsigned short end_txt_buf[] = L"                われわれ(UEFI)はかしこいので\r\n";
+	buf_size = 72;
+	status = file->Write(file, &buf_size, (void *)end_txt_buf);
+	if (status) {
+		put_str(L"error: file->Write(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+	}
+
+	status = file->Close(file);
+	if (status) {
+		put_str(L"error: file->Close(status:0x");
+		put_str(int_to_unicode_hex(status, 16, str));
+		put_str(L")\r\n");
+		put_str(L"file->Close\r\n");
+	}
+
+	put_str(L"end.txt finished\r\n");
 
 
 
