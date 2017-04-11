@@ -33,6 +33,7 @@ enum {
 	SH,
 #ifdef DEBUG
 	TEST,
+	MULTITEST,
 #endif /* DEBUG */
 	COMMAND_NUM
 } _COMMAND_SET;
@@ -187,9 +188,61 @@ struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
 		struct EFI_FILE_PROTOCOL **Root);
 };
 
+struct EFI_CPU_PHYSICAL_LOCATION {
+	unsigned int Package;
+	unsigned int Core;
+	unsigned int Thread;
+};
+
+struct EFI_PROCESSOR_INFORMATION {
+	unsigned long long ProcessorId;
+	unsigned int StatusFlag;
+	struct EFI_CPU_PHYSICAL_LOCATION Location;
+};
+
+struct EFI_MP_SERVICES_PROTOCOL {
+	unsigned long long (*GetNumberOfProcessors)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		unsigned long long *NumberOfProcessors,
+		unsigned long long *NumberOfEnabledProcessors);
+	unsigned long long (*GetProcessorInfo)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		unsigned long long ProcessorNumber,
+		struct EFI_PROCESSOR_INFORMATION *ProcessorInfoBuffer);
+	unsigned long long (*StartupAllAPs)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		void (*Procedure)(void *ProcedureArgument),
+		unsigned char SingleThread,
+		void *WaitEvent,
+		unsigned long long TimeoutInMicroSeconds,
+		void *ProcedureArgument,
+		unsigned long long **FailedCpuList);
+	unsigned long long (*StartupThisAP)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		void (*Procedure)(void *ProcedureArgument),
+		unsigned long long ProcessorNumber,
+		void *WaitEvent,
+		unsigned long long TimeoutInMicroseconds,
+		void *ProcedureArgument,
+		unsigned char *Finished);
+	unsigned long long (*SwitchBSP)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		unsigned long long ProcessorNumber,
+		unsigned char EnableOldBSP);
+	unsigned long long (*EnableDisableAP)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		unsigned long long ProcessorNumber,
+		unsigned char EnableAP,
+		unsigned int *HealthFlag);
+	unsigned long long (*WhoAmI)(
+		struct EFI_MP_SERVICES_PROTOCOL *This,
+		unsigned long long *ProcessorNumber);
+};
+
 struct EFI_SYSTEM_TABLE *SystemTable;
 struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
+struct EFI_MP_SERVICES_PROTOCOL *msp;
 unsigned char img_buf[MAX_IMG_BUF];
 
 void execute_line(unsigned short *buf);
@@ -208,9 +261,13 @@ static void put_char(unsigned short c)
 	SystemTable->ConOut->OutputString(SystemTable->ConOut, str);
 }
 
+volatile unsigned char lock_conout = 0;
 static void put_str(unsigned short *str)
 {
+	while (lock_conout);
+	lock_conout = 1;
 	SystemTable->ConOut->OutputString(SystemTable->ConOut, str);
+	lock_conout = 0;
 }
 
 static unsigned short get_char(void)
@@ -465,6 +522,30 @@ void blt(unsigned char img[], unsigned int img_width, unsigned int img_height)
 				*fb++ = img[ofs++];
 		}
 	}
+}
+
+void ap_main(void *_SystemTable)
+{
+	unsigned short str[1024];
+	struct EFI_SYSTEM_TABLE *SystemTable = _SystemTable;
+
+	struct EFI_GUID msp_guid = {0x3fdda605, 0xa76e, 0x4f46, {0xad, 0x29, 0x12, 0xf4, 0x53, 0x1b, 0x3d, 0x08}};
+	struct EFI_MP_SERVICES_PROTOCOL *msp;
+	unsigned long long status;
+	status = SystemTable->BootServices->LocateProtocol(&msp_guid, NULL, (void **)&msp);
+	if (status) {
+		put_str(L"error: SystemTable->BootServices->LocateProtocol\r\n");
+		while (1);
+	}
+	unsigned long long pnum;
+	status = msp->WhoAmI(msp, &pnum);
+	if (status) {
+		put_str(L"error: msp->WhoAmI\r\n");
+		while (1);
+	}
+
+	put_str(int_to_unicode(pnum, 1, str));
+	put_str(L"\r\n");
 }
 
 static int command_echo(unsigned short *args)
@@ -862,6 +943,18 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 
 	return 0;
 }
+static int command_multitest(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned long long status;
+
+	status = msp->StartupAllAPs(msp, ap_main, 0, NULL, 0, SystemTable, NULL);
+	if (status) {
+		put_str(L"error: msp->StartupAllAPs\r\n");
+		while (1);
+	}
+
+	return 0;
+}
 #endif /* DEBUG */
 
 static unsigned char get_command_id(const unsigned short *command)
@@ -893,6 +986,9 @@ static unsigned char get_command_id(const unsigned short *command)
 #ifdef DEBUG
 	if (!str_compare(command, L"test")) {
 		return TEST;
+	}
+	if (!str_compare(command, L"multitest")) {
+		return MULTITEST;
 	}
 #endif /* DEBUG */
 
@@ -930,6 +1026,9 @@ void execute_line(unsigned short *buf)
 	case TEST:
 		command_test(args);
 		break;
+	case MULTITEST:
+		command_multitest(args);
+		break;
 #endif /* DEBUG */
 	default:
 		put_str(L"Command not found.\r\n");
@@ -955,10 +1054,12 @@ void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABL
 {
 	struct EFI_GUID gop_guid = {0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a}};
 	struct EFI_GUID sfsp_guid = {0x0964e5b22, 0x6459,0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+	struct EFI_GUID msp_guid = {0x3fdda605, 0xa76e, 0x4f46, {0xad, 0x29, 0x12, 0xf4, 0x53, 0x1b, 0x3d, 0x08}};
 
 	SystemTable = _SystemTable;
 	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
 	SystemTable->BootServices->LocateProtocol(&sfsp_guid, NULL, (void **)&sfsp);
+	SystemTable->BootServices->LocateProtocol(&msp_guid, NULL, (void **)&msp);
 
 	shell();
 }
