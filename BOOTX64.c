@@ -69,8 +69,68 @@ struct EFI_SYSTEM_TABLE {
 	char _buf3[24];
 	struct EFI_BOOT_SERVICES {
 		char _buf1[24];
-		char _buf2[296];
+
+		//
+		// Task Priority Services
+		//
+		unsigned long long _buf2[2];
+
+		//
+		// Memory Services
+		//
+		unsigned long long _buf3[5];
+
+		//
+		// Event & Timer Services
+		//
+		unsigned long long _buf4[6];
+
+		//
+		// Protocol Handler Services
+		//
+		unsigned long long _buf5[9];
+
+		//
+		// Image Services
+		//
+		unsigned long long _buf6[5];
+
+		//
+		// Miscellaneous Services
+		//
+		unsigned long long _buf7[2];
+		unsigned long long (*SetWatchdogTimer)(
+			unsigned long long Timeout,
+			unsigned long long WatchdogCode,
+			unsigned long long DataSize,
+			unsigned short *WatchdogData);
+
+		//
+		// DriverSupport Services
+		//
+		unsigned long long _buf8[2];
+
+		//
+		// Open and Close Protocol Services
+		//
+		unsigned long long _buf9[3];
+
+		//
+		// Library Services
+		//
+		unsigned long long _buf10[2];
 		unsigned long long (*LocateProtocol)(struct EFI_GUID *, void *, void **);
+		unsigned long long _buf11[2];
+
+		//
+		// 32-bit CRC Services
+		//
+		unsigned long long _buf12;
+
+		//
+		// Miscellaneous Services
+		//
+		unsigned long long _buf13[3];
 	} *BootServices;
 };
 
@@ -1117,6 +1177,9 @@ void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABL
 	struct EFI_GUID msp_guid = {0x3fdda605, 0xa76e, 0x4f46, {0xad, 0x29, 0x12, 0xf4, 0x53, 0x1b, 0x3d, 0x08}};
 
 	SystemTable = _SystemTable;
+
+	SystemTable->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
+
 	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
 	SystemTable->BootServices->LocateProtocol(&sfsp_guid, NULL, (void **)&sfsp);
 	SystemTable->BootServices->LocateProtocol(&msp_guid, NULL, (void **)&msp);
