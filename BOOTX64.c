@@ -34,6 +34,7 @@ enum {
 #ifdef DEBUG
 	TEST,
 	MULTITEST,
+	KBDTEST,
 #endif /* DEBUG */
 	COMMAND_NUM
 } _COMMAND_SET;
@@ -984,6 +985,19 @@ static int command_multitest(unsigned short *args __attribute__ ((unused)))
 
 	return 0;
 }
+static int command_kbdtest(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned short c;
+	unsigned short str[8];
+
+	while (1) {
+		c = get_char();
+		put_str(int_to_unicode_hex((long long)c, 4, str));
+		put_str(L"\r\n");
+	}
+
+	return 0;
+}
 #endif /* DEBUG */
 
 static unsigned char get_command_id(const unsigned short *command)
@@ -1018,6 +1032,9 @@ static unsigned char get_command_id(const unsigned short *command)
 	}
 	if (!str_compare(command, L"multitest")) {
 		return MULTITEST;
+	}
+	if (!str_compare(command, L"kbdtest")) {
+		return KBDTEST;
 	}
 #endif /* DEBUG */
 
@@ -1057,6 +1074,9 @@ void execute_line(unsigned short *buf)
 		break;
 	case MULTITEST:
 		command_multitest(args);
+		break;
+	case KBDTEST:
+		command_kbdtest(args);
 		break;
 #endif /* DEBUG */
 	default:
