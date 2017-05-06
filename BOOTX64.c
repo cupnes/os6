@@ -63,8 +63,68 @@ struct EFI_SYSTEM_TABLE {
 	char _buf3[24];
 	struct EFI_BOOT_SERVICES {
 		char _buf1[24];
-		char _buf2[296];
+
+		//
+		// Task Priority Services
+		//
+		unsigned long long _buf2[2];
+
+		//
+		// Memory Services
+		//
+		unsigned long long _buf3[5];
+
+		//
+		// Event & Timer Services
+		//
+		unsigned long long _buf4[6];
+
+		//
+		// Protocol Handler Services
+		//
+		unsigned long long _buf5[9];
+
+		//
+		// Image Services
+		//
+		unsigned long long _buf6[5];
+
+		//
+		// Miscellaneous Services
+		//
+		unsigned long long _buf7[2];
+		unsigned long long (*SetWatchdogTimer)(
+			unsigned long long Timeout,
+			unsigned long long WatchdogCode,
+			unsigned long long DataSize,
+			unsigned short *WatchdogData);
+
+		//
+		// DriverSupport Services
+		//
+		unsigned long long _buf8[2];
+
+		//
+		// Open and Close Protocol Services
+		//
+		unsigned long long _buf9[3];
+
+		//
+		// Library Services
+		//
+		unsigned long long _buf10[2];
 		unsigned long long (*LocateProtocol)(struct EFI_GUID *, void *, void **);
+		unsigned long long _buf11[2];
+
+		//
+		// 32-bit CRC Services
+		//
+		unsigned long long _buf12;
+
+		//
+		// Miscellaneous Services
+		//
+		unsigned long long _buf13[3];
 	} *BootServices;
 };
 
