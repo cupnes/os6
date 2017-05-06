@@ -5,6 +5,8 @@
 #define MAX_ARGS	100
 #define MAX_FILE_LEN	32
 
+#define UNICODE_BS	0x0008
+
 //*******************************************************
 // Open Modes
 //*******************************************************
@@ -250,6 +252,7 @@ struct EFI_SYSTEM_TABLE *SystemTable;
 struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
 unsigned char img_buf[MAX_IMG_BUF];
+int cursor_x = 0;
 
 void execute_line(unsigned short *buf);
 
@@ -285,14 +288,23 @@ static unsigned int get_line(unsigned short *buf, unsigned int buf_size)
 {
 	unsigned int i;
 
+	cursor_x = 0;
 	for (i = 0; i < buf_size - 1;) {
 		buf[i] = get_char();
+		if ((buf[i] == UNICODE_BS) && (cursor_x <= 0))
+			continue;
 		put_char(buf[i]);
 		if (buf[i] == L'\r') {
 			put_char(L'\n');
 			break;
 		}
-		i++;
+		if (buf[i] == UNICODE_BS) {
+			i--;
+			cursor_x--;
+		} else {
+			i++;
+			cursor_x++;
+		}
 	}
 	buf[i] = L'\0';
 
@@ -761,6 +773,7 @@ static int command_view(unsigned short *args)
 		put_str(L"root->Close\r\n");
 
 	SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
+	cursor_x = 0;
 
 	return 0;
 }
