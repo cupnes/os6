@@ -31,6 +31,7 @@ enum {
 	SH,
 #ifdef DEBUG
 	TEST,
+	KBDTEST,
 #endif /* DEBUG */
 	COMMAND_NUM
 } _COMMAND_SET;
@@ -817,6 +818,19 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 
 	return 0;
 }
+static int command_kbdtest(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned short c;
+	unsigned short str[8];
+
+	while (1) {
+		c = get_char();
+		put_str(int_to_unicode_hex((long long)c, 4, str));
+		put_str(L"\r\n");
+	}
+
+	return 0;
+}
 #endif /* DEBUG */
 
 static unsigned char get_command_id(const unsigned short *command)
@@ -848,6 +862,9 @@ static unsigned char get_command_id(const unsigned short *command)
 #ifdef DEBUG
 	if (!str_compare(command, L"test")) {
 		return TEST;
+	}
+	if (!str_compare(command, L"kbdtest")) {
+		return KBDTEST;
 	}
 #endif /* DEBUG */
 
@@ -884,6 +901,9 @@ void execute_line(unsigned short *buf)
 #ifdef DEBUG
 	case TEST:
 		command_test(args);
+		break;
+	case KBDTEST:
+		command_kbdtest(args);
 		break;
 #endif /* DEBUG */
 	default:
