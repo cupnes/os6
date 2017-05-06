@@ -912,6 +912,9 @@ void efi_main(void *ImageHandle __attribute__ ((unused)), struct EFI_SYSTEM_TABL
 	struct EFI_GUID sfsp_guid = {0x0964e5b22, 0x6459,0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
 
 	SystemTable = _SystemTable;
+
+	SystemTable->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
+
 	SystemTable->BootServices->LocateProtocol(&gop_guid, NULL, (void **)&gop);
 	SystemTable->BootServices->LocateProtocol(&sfsp_guid, NULL, (void **)&sfsp);
 
