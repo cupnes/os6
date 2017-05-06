@@ -837,7 +837,7 @@ void shell(void)
 	unsigned short buf[MAX_LINE_SIZE];
 
 	while (1) {
-		put_str(L"shell> ");
+		put_str(L"OS6> ");
 		if (get_line(buf, MAX_LINE_SIZE) <= 0) {
 			continue;
 		}
