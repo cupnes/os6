@@ -1,6 +1,8 @@
 #ifndef _EFI_H_
 #define _EFI_H_
 
+#define MAX_IMG_BUF	4194304	/* 4MB */
+
 //*******************************************************
 // Open Modes
 //*******************************************************
@@ -283,5 +285,9 @@ extern struct EFI_SYSTEM_TABLE *SystemTable;
 extern struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 extern struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
 extern struct EFI_MP_SERVICES_PROTOCOL *msp;
+extern unsigned char img_buf[MAX_IMG_BUF];
+
+void blt(unsigned char img[], unsigned int img_width, unsigned int img_height);
+void ap_main(void *_SystemTable);
 
 #endif /* _EFI_H_ */
