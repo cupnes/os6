@@ -312,7 +312,40 @@ static int command_sh(unsigned short *args)
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
-	put_str(L"test\r\n");
+	unsigned long long status;
+	void *TimerEvent;
+	void *WaitList[1];
+	unsigned short str[1024];
+	unsigned long long Index;
+
+	while (1) {
+		status = SystemTable->BootServices->CreateEvent(EVT_TIMER, 0, NULL, NULL, &TimerEvent);
+		if (status) {
+			put_str(L"SystemTable->BootServices->CreateEvent: 0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L"\r\n");
+			while (1);
+		}
+
+		status = SystemTable->BootServices->SetTimer(TimerEvent, TimerRelative, 10000000);
+		if (status) {
+			put_str(L"SystemTable->BootServices->SetTimer: 0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L"\r\n");
+			while (1);
+		}
+
+		WaitList[0] = TimerEvent;
+
+		put_str(L"Wait.");
+		status = SystemTable->BootServices->WaitForEvent(1, WaitList, &Index);
+		if (status) {
+			put_str(L"SystemTable->BootServices->WaitForEvent: 0x");
+			put_str(int_to_unicode_hex(status, 16, str));
+			put_str(L"\r\n");
+			while (1);
+		}
+	}
 
 	return 0;
 }
