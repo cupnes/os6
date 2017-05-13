@@ -20,6 +20,13 @@
 #define EFI_FILE_ARCHIVE	0x0000000000000020
 #define EFI_FILE_VALID_ATTR	0x0000000000000037
 
+#define EVT_TIMER	0x80000000
+#define EVT_RUNTIME	0x40000000
+#define EVT_NOTIFY_WAIT	0x00000100
+#define EVT_NOTIFY_SIGNAL	0x00000200
+#define EVT_SIGNAL_EXIT_BOOT_SERVICES	0x00000201
+#define EVT_SIGNAL_VIRTUAL_ADDRESS_CHANGE	0x60000202
+
 struct EFI_INPUT_KEY {
 	unsigned short ScanCode;
 	unsigned short UnicodeChar;
@@ -30,6 +37,12 @@ struct EFI_GUID {
 	unsigned short Data2;
 	unsigned short Data3;
 	unsigned char Data4[8];
+};
+
+enum EFI_TIMER_DELAY {
+	TimerCancel,
+	TimerPeriodic,
+	TimerRelative
 };
 
 struct EFI_SYSTEM_TABLE {
@@ -62,7 +75,20 @@ struct EFI_SYSTEM_TABLE {
 		//
 		// Event & Timer Services
 		//
-		unsigned long long _buf4[6];
+		unsigned long long (*CreateEvent)(
+			unsigned int Type,
+			unsigned long long NotifyTpl,
+			void (*NotifyFunction)(void *Event, void *Context),
+			void *NotifyContext,
+			void *Event);
+		unsigned long long (*SetTimer)(void *Event,
+					       enum EFI_TIMER_DELAY Type,
+					       unsigned long long TriggerTime);
+		unsigned long long (*WaitForEvent)(
+			unsigned long long NumberOfEvents,
+			void *Event,
+			unsigned long long *Index);
+		unsigned long long _buf4[3];
 
 		//
 		// Protocol Handler Services
