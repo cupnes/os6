@@ -135,8 +135,10 @@ static int command_cat(unsigned short *args)
 		put_str(L"error: file->Read(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
 		put_str(L")\r\n");
-	} else
+	} else {
+		file_buf[buf_size / 2] = L'\0';
 		put_str(file_buf);
+	}
 
 	status = file->Close(file);
 	if (status) {
@@ -286,8 +288,10 @@ static int command_sh(unsigned short *args)
 		put_str(L"error: file->Read(status:0x");
 		put_str(int_to_unicode_hex(status, 16, str));
 		put_str(L")\r\n");
-	} else
+	} else {
+		file_buf[buf_size / 2] = L'\0';
 		execute_line(file_buf);
+	}
 
 	status = file->Close(file);
 	if (status) {
