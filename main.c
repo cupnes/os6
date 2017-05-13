@@ -1,13 +1,12 @@
 #include <common.h>
 #include <efi.h>
+#include <console.h>
 
 #define MAX_LINE_SIZE	512
 #define MAX_FILE_BUF	1024
 #define MAX_IMG_BUF	4194304	/* 4MB */
 #define MAX_ARGS	100
 #define MAX_FILE_LEN	32
-
-#define UNICODE_BS	0x0008
 
 enum {
 	ECHO,
@@ -29,62 +28,8 @@ struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
 struct EFI_MP_SERVICES_PROTOCOL *msp;
 unsigned char img_buf[MAX_IMG_BUF];
-int cursor_x = 0;
 
 void execute_line(unsigned short *buf);
-
-static void put_char(unsigned short c)
-{
-	unsigned short str[2] = L" ";
-
-	str[0] = c;
-	SystemTable->ConOut->OutputString(SystemTable->ConOut, str);
-}
-
-volatile unsigned char lock_conout = 0;
-static void put_str(unsigned short *str)
-{
-	while (lock_conout);
-	lock_conout = 1;
-	SystemTable->ConOut->OutputString(SystemTable->ConOut, str);
-	lock_conout = 0;
-}
-
-static unsigned short get_char(void)
-{
-	struct EFI_INPUT_KEY efi_input_key;
-
-	while (SystemTable->ConIn->ReadKeyStroke(SystemTable->ConIn, &efi_input_key));
-
-	return efi_input_key.UnicodeChar;
-}
-
-static unsigned int get_line(unsigned short *buf, unsigned int buf_size)
-{
-	unsigned int i;
-
-	cursor_x = 0;
-	for (i = 0; i < buf_size - 1;) {
-		buf[i] = get_char();
-		if ((buf[i] == UNICODE_BS) && (cursor_x <= 0))
-			continue;
-		put_char(buf[i]);
-		if (buf[i] == L'\r') {
-			put_char(L'\n');
-			break;
-		}
-		if (buf[i] == UNICODE_BS) {
-			i--;
-			cursor_x--;
-		} else {
-			i++;
-			cursor_x++;
-		}
-	}
-	buf[i] = L'\0';
-
-	return i;
-}
 
 void blt(unsigned char img[], unsigned int img_width, unsigned int img_height)
 {

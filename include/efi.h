@@ -279,4 +279,9 @@ struct EFI_MP_SERVICES_PROTOCOL {
 		unsigned long long *ProcessorNumber);
 };
 
+extern struct EFI_SYSTEM_TABLE *SystemTable;
+extern struct EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+extern struct EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfsp;
+extern struct EFI_MP_SERVICES_PROTOCOL *msp;
+
 #endif /* _EFI_H_ */

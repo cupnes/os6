@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -e efi_main -nostdlib -Wl,--subsystem,10	\
 
 all: fs/EFI/BOOT/BOOTX64.EFI
 
-fs/EFI/BOOT/BOOTX64.EFI: common.c main.c
+fs/EFI/BOOT/BOOTX64.EFI: common.c console.c main.c
 	mkdir -p fs/EFI/BOOT
 	x86_64-w64-mingw32-gcc $(CFLAGS) -o $@ $+
 
