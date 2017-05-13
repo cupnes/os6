@@ -1,6 +1,7 @@
 #include <common.h>
 #include <efi.h>
 #include <console.h>
+#include <ap.h>
 #include <shell.h>
 
 void ap_main(void *_SystemTable)

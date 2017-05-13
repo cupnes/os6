@@ -289,6 +289,5 @@ extern unsigned char img_buf[MAX_IMG_BUF];
 
 void efi_init(struct EFI_SYSTEM_TABLE *_SystemTable);
 void blt(unsigned char img[], unsigned int img_width, unsigned int img_height);
-void ap_main(void *_SystemTable);
 
 #endif /* _EFI_H_ */

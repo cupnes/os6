@@ -1,6 +1,7 @@
 #include <shell.h>
 #include <common.h>
 #include <efi.h>
+#include <ap.h>
 #include <console.h>
 
 enum {
