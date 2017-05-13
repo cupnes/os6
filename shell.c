@@ -317,6 +317,8 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 	void *WaitList[1];
 	unsigned short str[1024];
 	unsigned long long Index;
+	unsigned int sec = 300;
+	unsigned short str_time[6];
 
 	while (1) {
 		status = SystemTable->BootServices->CreateEvent(EVT_TIMER, 0, NULL, NULL, &TimerEvent);
@@ -337,7 +339,8 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 
 		WaitList[0] = TimerEvent;
 
-		put_str(L"Wait.");
+		put_str(sec_to_time(--sec, str_time));
+		put_str(L"\r\n");
 		status = SystemTable->BootServices->WaitForEvent(1, WaitList, &Index);
 		if (status) {
 			put_str(L"SystemTable->BootServices->WaitForEvent: 0x");

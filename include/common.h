@@ -13,5 +13,6 @@ unsigned short *int_to_ascii_hex(unsigned long long val, unsigned char num_digit
 unsigned short *int_to_unicode(long long val, unsigned char num_digits, unsigned short str[]);
 unsigned short *int_to_unicode_hex(unsigned long long val, unsigned char num_digits, unsigned short str[]);
 unsigned short *ascii_to_unicode(char ascii[], unsigned char num_digits, unsigned short str[]);
+unsigned short *sec_to_time(unsigned int sec, unsigned short *str_time);
 
 #endif /* _COMMON_H_ */

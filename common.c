@@ -209,3 +209,15 @@ unsigned short *ascii_to_unicode(char ascii[], unsigned char num_digits, unsigne
 	str[i] = L'\0';
 	return str;
 }
+
+unsigned short *sec_to_time(unsigned int sec, unsigned short *str_time)
+{
+	unsigned int m = sec / 60;
+	unsigned int s = sec % 60;
+
+	int_to_unicode((long long)m, 2, str_time);
+	str_time[2] = L':';
+	int_to_unicode((long long)s, 2, str_time + 3);
+
+	return str_time;
+}
