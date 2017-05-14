@@ -310,7 +310,7 @@ static int command_sh(unsigned short *args)
 	return 0;
 }
 
-static int command_timer5m(unsigned short *args __attribute__ ((unused)))
+void timer5m(void *args __attribute__ ((unused)))
 {
 	unsigned long long status;
 	void *TimerEvent;
@@ -349,6 +349,16 @@ static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 			while (1);
 		}
 	}
+}
+static int command_timer5m(unsigned short *args __attribute__ ((unused)))
+{
+	unsigned long long status;
+
+	status = msp->StartupThisAP(msp, timer5m, 1, NULL, 0, NULL, NULL);
+	if (status) {
+		put_str(L"error: msp->StartupAllAPs\r\n");
+		while (1);
+	}
 
 	return 0;
 }
@@ -356,13 +366,7 @@ static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
-	unsigned long long status;
-
-	status = msp->StartupThisAP(msp, ap_main, 1, NULL, 0, SystemTable, NULL);
-	if (status) {
-		put_str(L"error: msp->StartupAllAPs\r\n");
-		while (1);
-	}
+	put_str(L"test\r\n");
 
 	return 0;
 }
