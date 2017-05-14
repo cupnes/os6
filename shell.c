@@ -11,6 +11,7 @@ enum {
 	CAT,
 	VIEW,
 	SH,
+	TIMER5M,
 #ifdef DEBUG
 	TEST,
 	MULTITEST,
@@ -309,8 +310,7 @@ static int command_sh(unsigned short *args)
 	return 0;
 }
 
-#ifdef DEBUG
-static int command_test(unsigned short *args __attribute__ ((unused)))
+static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 {
 	unsigned long long status;
 	void *TimerEvent;
@@ -349,6 +349,14 @@ static int command_test(unsigned short *args __attribute__ ((unused)))
 			while (1);
 		}
 	}
+
+	return 0;
+}
+
+#ifdef DEBUG
+static int command_test(unsigned short *args __attribute__ ((unused)))
+{
+	put_str("test\r\n");
 
 	return 0;
 }
@@ -405,6 +413,10 @@ static unsigned char get_command_id(const unsigned short *command)
 		return SH;
 	}
 
+	if (!str_compare(command, L"timer5m")) {
+		return TIMER5M;
+	}
+
 #ifdef DEBUG
 	if (!str_compare(command, L"test")) {
 		return TEST;
@@ -446,6 +458,9 @@ void execute_line(unsigned short *buf)
 		break;
 	case SH:
 		command_sh(args);
+		break;
+	case TIMER5M:
+		command_timer5m(args);
 		break;
 #ifdef DEBUG
 	case TEST:
