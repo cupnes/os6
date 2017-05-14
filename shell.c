@@ -339,7 +339,7 @@ static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 
 		WaitList[0] = TimerEvent;
 
-		put_str(sec_to_time(--sec, str_time));
+		put_str(sec_to_time(sec--, str_time));
 		put_str(L"\r\n");
 		status = SystemTable->BootServices->WaitForEvent(1, WaitList, &Index);
 		if (status) {
