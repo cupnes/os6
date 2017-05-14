@@ -320,7 +320,7 @@ static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 	unsigned int sec = 300;
 	unsigned short str_time[6];
 
-	while (1) {
+	while (sec > 0) {
 		status = SystemTable->BootServices->CreateEvent(EVT_TIMER, 0, NULL, NULL, &TimerEvent);
 		if (status) {
 			put_str(L"SystemTable->BootServices->CreateEvent: 0x");
