@@ -356,7 +356,13 @@ static int command_timer5m(unsigned short *args __attribute__ ((unused)))
 #ifdef DEBUG
 static int command_test(unsigned short *args __attribute__ ((unused)))
 {
-	put_str("test\r\n");
+	unsigned long long status;
+
+	status = msp->StartupThisAP(msp, ap_main, 1, NULL, 0, SystemTable, NULL);
+	if (status) {
+		put_str(L"error: msp->StartupAllAPs\r\n");
+		while (1);
+	}
 
 	return 0;
 }
